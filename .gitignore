@@ -216,3 +216,34 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# DVC
+.dvc/tmp/
+.dvc/cache/
+
+# Model artifacts
+*.pkl
+*.joblib
+*.h5
+*.onnx
+*.pt
+*.pth
+
+# Data directories (managed by DVC)
+models/*/data/raw/
+models/*/data/processed/
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
+
+# OS
+.DS_Store
+Thumbs.db

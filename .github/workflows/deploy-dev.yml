@@ -1,0 +1,14 @@
+name: Deploy Dev
+
+on:
+  workflow_dispatch:
+
+# TODO (Phase 2): Implement on-demand dev deploy
+# Steps:
+#   1. Build and push image to GHCR tagged dev-<sha>
+#   2. Deploy to AKS dev namespace via kubectl apply
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Dev deploy — to be implemented in Phase 2"

@@ -1,0 +1,18 @@
+name: Deploy Staging
+
+on:
+  push:
+    branches: [staging]
+
+# TODO (Phase 2): Implement staging deploy
+# Steps:
+#   1. Build and push image to GHCR tagged staging-<sha>
+#   2. Run integration tests against the image
+#   3. Deploy to AKS staging namespace
+#   4. Run model validation smoke tests (latency, accuracy threshold)
+#   5. Update MLflow model stage: None → Staging
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Staging deploy — to be implemented in Phase 2"
