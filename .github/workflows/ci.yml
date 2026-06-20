@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, staging, main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dev dependencies
+        run: pip install ruff mypy pytest
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Type check
+        run: mypy . --ignore-missing-imports
+
+      - name: Unit tests
+        run: pytest models/ serving/ -v --tb=short -q
+
+  docker-build-check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        context:
+          - serving
+          - models/fraud-detection
+          - models/sentiment-analysis
+          - models/demand-forecasting
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build ${{ matrix.context }}
+        run: docker build ${{ matrix.context }} --tag smoke-check:latest

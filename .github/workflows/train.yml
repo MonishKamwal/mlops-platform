@@ -1,0 +1,25 @@
+name: Train
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Model to train
+        required: true
+        type: choice
+        options:
+          - fraud-detection
+          - sentiment-analysis
+          - demand-forecasting
+
+# TODO (Phase 2-4): Implement per-model training pipeline
+# Steps:
+#   1. Pull data from DVC remote (Azure Blob Storage)
+#   2. Build and run training Docker image
+#   3. Log params, metrics, and artifacts to MLflow
+#   4. Register model in MLflow Model Registry if metrics pass threshold
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Training ${{ inputs.model }} — to be implemented in Phase 2–4"
