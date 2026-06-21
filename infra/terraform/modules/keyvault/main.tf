@@ -27,7 +27,6 @@ resource "azurerm_key_vault_access_policy" "deployer" {
 
 # Give AKS kubelet identity read access to pull secrets at runtime
 resource "azurerm_key_vault_access_policy" "aks_kubelet" {
-  count        = var.aks_kubelet_object_id != "" ? 1 : 0
   key_vault_id = azurerm_key_vault.this.id
   tenant_id    = data.azurerm_client_config.current.tenant_id
   object_id    = var.aks_kubelet_object_id

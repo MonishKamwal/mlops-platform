@@ -12,7 +12,7 @@ resource "azurerm_kubernetes_cluster" "this" {
 
     # Allow cluster autoscaler to scale to 0 (nightly teardown via scheduled Action)
     enable_auto_scaling = true
-    min_count           = 0
+    min_count           = 1
     max_count           = 2
   }
 
