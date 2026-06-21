@@ -203,6 +203,15 @@ cython_debug/
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
 
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+tfplan
+
+# DVC data
+models/*/data/
+
 # Ruff stuff:
 .ruff_cache/
 
