@@ -1,5 +1,4 @@
 import pandas as pd
-import pytest
 
 from src.features import build_features
 
