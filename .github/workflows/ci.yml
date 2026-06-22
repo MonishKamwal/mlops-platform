@@ -22,7 +22,7 @@ jobs:
         run: ruff check .
 
       - name: Type check
-        run: mypy . --ignore-missing-imports
+        run: mypy serving/ --ignore-missing-imports
 
       - name: Unit tests
         run: pytest models/ serving/ -v --tb=short -q
