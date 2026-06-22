@@ -192,7 +192,7 @@ Design principle: every technical component has a plain-English tooltip for non-
 - [x] GitHub repo, branch protection, repo structure scaffold
 - [x] Terraform: AKS (1 node), Azure Blob Storage, Key Vault — config written + plan validated; `apply` deferred to save costs until Phase 2
 - [ ] MLflow server deployed in AKS, accessible via Ingress
-- [ ] Docker Compose local dev stack (api + mlflow + prometheus + grafana)
+- [x] Docker Compose local dev stack (api + mlflow + prometheus + grafana)
 - [ ] DVC initialized, Azure Blob as remote
 
 ### Phase 2 — Model 1: Fraud Detection (Weeks 4–5)
@@ -238,7 +238,7 @@ Design principle: every technical component has a plain-English tooltip for non-
 
 ## Verification Checklist
 
-- [ ] `make dev` brings up full local stack (Docker Compose)
+- [x] `make dev` brings up full local stack (Docker Compose)
 - [ ] `terraform plan` on staging environment shows no drift
 - [ ] Feature branch push triggers CI (lint + tests)
 - [ ] Merge to `develop` builds image; dev endpoint returns predictions

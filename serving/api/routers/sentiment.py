@@ -1,7 +1,7 @@
 import os
 
 import mlflow.transformers
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -12,7 +12,9 @@ _pipeline = None
 def get_pipeline():
     global _pipeline
     if _pipeline is None:
-        uri = os.environ["SENTIMENT_MODEL_URI"]
+        uri = os.environ.get("SENTIMENT_MODEL_URI")
+        if not uri:
+            raise HTTPException(status_code=503, detail="Sentiment model not configured — train and register a model first")
         _pipeline = mlflow.transformers.load_model(uri)
     return _pipeline
 

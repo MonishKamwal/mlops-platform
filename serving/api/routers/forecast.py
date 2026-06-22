@@ -2,7 +2,7 @@ import os
 
 import mlflow.lightgbm
 import numpy as np
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -13,7 +13,9 @@ _model = None
 def get_model():
     global _model
     if _model is None:
-        uri = os.environ["FORECAST_MODEL_URI"]
+        uri = os.environ.get("FORECAST_MODEL_URI")
+        if not uri:
+            raise HTTPException(status_code=503, detail="Forecast model not configured — train and register a model first")
         _model = mlflow.lightgbm.load_model(uri)
     return _model
 
