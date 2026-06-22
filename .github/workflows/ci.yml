@@ -16,7 +16,7 @@ jobs:
           cache: pip
 
       - name: Install dev dependencies
-        run: pip install ruff mypy pytest
+        run: pip install ruff mypy pytest pandas numpy scikit-learn
 
       - name: Lint
         run: ruff check .
