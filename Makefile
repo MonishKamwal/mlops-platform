@@ -1,10 +1,16 @@
-.PHONY: dev down lint test build
+.PHONY: dev down logs ps lint test build
 
 dev:
-	docker compose up --build
+	docker compose up -d --build
 
 down:
 	docker compose down -v
+
+logs:
+	docker compose logs -f
+
+ps:
+	docker compose ps
 
 lint:
 	ruff check .

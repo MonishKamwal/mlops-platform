@@ -2,19 +2,23 @@ services:
   api:
     build: ./serving
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
-      FRAUD_MODEL_URI: models:/fraud-detection/Production
-      SENTIMENT_MODEL_URI: models:/sentiment-analysis/Production
-      FORECAST_MODEL_URI: models:/demand-forecasting/Production
+      FRAUD_MODEL_URI: ${FRAUD_MODEL_URI:-}
+      SENTIMENT_MODEL_URI: ${SENTIMENT_MODEL_URI:-}
+      FORECAST_MODEL_URI: ${FORECAST_MODEL_URI:-}
     depends_on:
-      - mlflow
+      mlflow:
+        condition: service_healthy
+    networks:
+      - mlops
+    restart: unless-stopped
 
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.13.0
     ports:
-      - "5000:5000"
+      - "${MLFLOW_PORT:-5000}:5000"
     command: >
       mlflow server
       --host 0.0.0.0
@@ -23,24 +27,54 @@ services:
       --default-artifact-root /mlflow/artifacts
     volumes:
       - mlflow_data:/mlflow
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - mlops
+    restart: unless-stopped
 
   prometheus:
     image: prom/prometheus:v2.51.0
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_PORT:-9090}:9090"
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    networks:
+      - mlops
+    restart: unless-stopped
 
   grafana:
     image: grafana/grafana:10.4.0
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT:-3000}:3000"
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - mlops
+    restart: unless-stopped
+
+networks:
+  mlops:
+    driver: bridge
 
 volumes:
   mlflow_data:
+  prometheus_data:
   grafana_data:
