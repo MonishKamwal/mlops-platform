@@ -209,11 +209,11 @@ tempCodeRunnerFile.py
 *.tfstate.backup
 tfplan
 
-# DVC data — ignore actual data files, keep directory structure in git
-models/*/data/raw/*
-models/*/data/processed/*
-!models/*/data/raw/.gitkeep
-!models/*/data/processed/.gitkeep
+# DVC manages its own .gitignore files inside data/ dirs — no manual rules needed here
+
+# MLflow local SQLite fallback (created when no tracking server is reachable)
+mlflow.db
+mlruns/
 
 # Ruff stuff:
 .ruff_cache/
