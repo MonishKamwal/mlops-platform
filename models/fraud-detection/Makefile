@@ -2,11 +2,14 @@
 
 DATA_PATH ?= data/raw/creditcard.csv
 
+featurize:
+	python -m src.features --input data/raw/creditcard.csv --output data/processed/features.parquet
+
 train:
-	python src/train.py --data-path $(DATA_PATH)
+	python -m src.train --data-path data/processed/features.parquet
 
 evaluate:
-	python src/evaluate.py --model-uri models:/fraud-detection/Production --data-path $(DATA_PATH)
+	python -m src.evaluate --model-path model/model.json --scaler-path model/scaler.pkl --data-path data/processed/features.parquet
 
 lint:
 	ruff check src/ tests/

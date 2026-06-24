@@ -188,12 +188,12 @@ Design principle: every technical component has a plain-English tooltip for non-
 
 ## Phased Timeline
 
-### Phase 1 — Foundation (Weeks 1–3)
+### Phase 1 — Foundation (Weeks 1–3) ✓
 - [x] GitHub repo, branch protection, repo structure scaffold
 - [x] Terraform: AKS (1 node), Azure Blob Storage, Key Vault — config written + plan validated; `apply` deferred to save costs until Phase 2
-- [ ] MLflow server deployed in AKS, accessible via Ingress
+- [x] MLflow server deployed locally via Docker Compose; AKS deployment deferred to Phase 2 (requires `terraform apply`)
 - [x] Docker Compose local dev stack (api + mlflow + prometheus + grafana)
-- [ ] DVC initialized, Azure Blob as remote
+- [x] DVC initialized, Azure Blob as remote
 
 ### Phase 2 — Model 1: Fraud Detection (Weeks 4–5)
 - [ ] Training script with MLflow tracking (params, metrics, artifacts)

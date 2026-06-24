@@ -1,0 +1,82 @@
+schema: '2.0'
+stages:
+  featurize:
+    cmd: python -m src.features --input data/raw/creditcard.csv --output 
+      data/processed/features.parquet
+    deps:
+    - path: data/raw/creditcard.csv
+      hash: md5
+      md5: e90efcb83d69faf99fcab8b0255024de
+      size: 150828752
+      isexec: true
+    - path: src/features.py
+      hash: md5
+      md5: 5debc83f171eb010db43a48623380c84
+      size: 655
+    outs:
+    - path: data/processed/features.parquet
+      hash: md5
+      md5: e55cf6a935d7327eef3a4d287ece39fa
+      size: 71456572
+  train:
+    cmd: python -m src.train --data-path data/processed/features.parquet 
+      --n-estimators 100 --test-size 0.2
+    deps:
+    - path: data/processed/features.parquet
+      hash: md5
+      md5: e55cf6a935d7327eef3a4d287ece39fa
+      size: 71456572
+    - path: src/features.py
+      hash: md5
+      md5: 5debc83f171eb010db43a48623380c84
+      size: 655
+    - path: src/train.py
+      hash: md5
+      md5: b9e4c13c40e90d07aa6007150e4775b2
+      size: 2102
+    params:
+      params.yaml:
+        train.n_estimators: 100
+        train.test_size: 0.2
+    outs:
+    - path: metrics.json
+      hash: md5
+      md5: ba8f219915d46efe660d64396f331bb1
+      size: 19
+    - path: model/model.json
+      hash: md5
+      md5: d3bc6a47d1728cd93bf8e8971a3552ab
+      size: 234623
+    - path: model/scaler.pkl
+      hash: md5
+      md5: 217b779c24448c260ec97dfb3e5b3353
+      size: 1367
+  evaluate:
+    cmd: python -m src.evaluate --model-path model/model.json --scaler-path 
+      model/scaler.pkl --data-path data/processed/features.parquet
+    deps:
+    - path: data/processed/features.parquet
+      hash: md5
+      md5: e55cf6a935d7327eef3a4d287ece39fa
+      size: 71456572
+    - path: model/model.json
+      hash: md5
+      md5: d3bc6a47d1728cd93bf8e8971a3552ab
+      size: 234623
+    - path: model/scaler.pkl
+      hash: md5
+      md5: 217b779c24448c260ec97dfb3e5b3353
+      size: 1367
+    - path: src/evaluate.py
+      hash: md5
+      md5: 37f0de5fe9a6f6fe136ed6986fec7533
+      size: 1233
+    - path: src/features.py
+      hash: md5
+      md5: 5debc83f171eb010db43a48623380c84
+      size: 655
+    outs:
+    - path: eval_metrics.json
+      hash: md5
+      md5: 3d55a9e0a9e03644295348a3b99d8358
+      size: 19
