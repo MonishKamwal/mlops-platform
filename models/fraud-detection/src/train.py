@@ -5,6 +5,7 @@ import pickle
 
 import mlflow
 import mlflow.xgboost
+from dotenv import find_dotenv, load_dotenv
 import pandas as pd
 import xgboost as xgb
 from sklearn.metrics import roc_auc_score
@@ -15,6 +16,11 @@ from src.features import prepare_features
 
 
 def train(data_path: str, n_estimators: int = 100, test_size: float = 0.2) -> None:
+    load_dotenv(find_dotenv())
+    tracking_uri = os.environ.get("MLFLOW_TRACKING_URI", "http://localhost:5000")
+    mlflow.set_tracking_uri(tracking_uri)
+    mlflow.set_experiment("fraud-detection")
+
     df = pd.read_parquet(data_path)
     X, y = prepare_features(df)
 
@@ -35,7 +41,7 @@ def train(data_path: str, n_estimators: int = 100, test_size: float = 0.2) -> No
 
         auc = roc_auc_score(y_test, model.predict_proba(X_test_scaled)[:, 1])
         mlflow.log_metric("roc_auc", auc)
-        mlflow.xgboost.log_model(model, "model", registered_model_name="fraud-detection")
+        mlflow.xgboost.log_model(model, name="model", registered_model_name="fraud-detection")
 
         os.makedirs("model", exist_ok=True)
         model.save_model("model/model.json")
