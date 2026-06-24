@@ -150,7 +150,7 @@ activemq-data/
 # Environments
 .env
 .envrc
-.venv
+.venv/
 env/
 venv/
 ENV/
@@ -209,8 +209,11 @@ tempCodeRunnerFile.py
 *.tfstate.backup
 tfplan
 
-# DVC data
-models/*/data/
+# DVC data — ignore actual data files, keep directory structure in git
+models/*/data/raw/*
+models/*/data/processed/*
+!models/*/data/raw/.gitkeep
+!models/*/data/processed/.gitkeep
 
 # Ruff stuff:
 .ruff_cache/
@@ -242,9 +245,7 @@ mlartifacts/
 *.pt
 *.pth
 
-# Data directories (managed by DVC)
-models/*/data/raw/
-models/*/data/processed/
+# (data dir rules consolidated above under "DVC data")
 
 # Terraform
 **/.terraform/
