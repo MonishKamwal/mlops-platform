@@ -196,9 +196,9 @@ Design principle: every technical component has a plain-English tooltip for non-
 - [x] DVC initialized, Azure Blob as remote
 
 ### Phase 2 — Model 1: Fraud Detection (Weeks 4–5)
-- [ ] Training script with MLflow tracking (params, metrics, artifacts)
-- [ ] DVC pipeline: data → features → train → evaluate
-- [ ] Model registered in MLflow Model Registry
+- [x] Training script with MLflow tracking (params, metrics, artifacts)
+- [x] DVC pipeline: data → features → train → evaluate
+- [x] Model registered in MLflow Model Registry
 - [ ] FastAPI endpoint `/predict/fraud`
 - [ ] GitHub Actions CI (lint, test, build)
 - [ ] Deploy to AKS staging
