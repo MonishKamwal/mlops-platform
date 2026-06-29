@@ -5,9 +5,11 @@ services:
       - "${API_PORT:-8000}:8000"
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
-      FRAUD_MODEL_URI: ${FRAUD_MODEL_URI:-}
+      FRAUD_MODEL_DIR: /models/fraud-detection/model
       SENTIMENT_MODEL_URI: ${SENTIMENT_MODEL_URI:-}
       FORECAST_MODEL_URI: ${FORECAST_MODEL_URI:-}
+    volumes:
+      - ./models/fraud-detection/model:/models/fraud-detection/model:ro
     depends_on:
       mlflow:
         condition: service_healthy
