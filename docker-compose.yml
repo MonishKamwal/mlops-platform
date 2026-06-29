@@ -6,6 +6,7 @@ services:
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
       FRAUD_MODEL_DIR: /models/fraud-detection/model
+      FRAUD_MODEL_URI: ${FRAUD_MODEL_URI:-}
       SENTIMENT_MODEL_URI: ${SENTIMENT_MODEL_URI:-}
       FORECAST_MODEL_URI: ${FORECAST_MODEL_URI:-}
     volumes:
