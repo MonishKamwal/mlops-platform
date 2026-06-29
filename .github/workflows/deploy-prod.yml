@@ -1,0 +1,18 @@
+name: Deploy Production
+
+on:
+  push:
+    branches: [main]
+
+# TODO (Phase 4): Implement production canary deploy
+# Steps:
+#   1. Build and push image to GHCR tagged prod-<sha>
+#   2. Canary deploy at 10% traffic via Kubernetes traffic splitting
+#   3. Monitor for 10 min via Prometheus (error rate, latency, drift)
+#   4. Auto-promote to 100% if healthy; auto-rollback if thresholds breached
+#   5. Update MLflow model stage: Staging → Production
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Production canary deploy — to be implemented in Phase 4"

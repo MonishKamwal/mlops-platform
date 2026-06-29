@@ -1,0 +1,37 @@
+stages:
+  featurize:
+    cmd: python -m src.features --input data/raw/creditcard.csv --output data/processed/features.parquet
+    deps:
+      - src/features.py
+      - data/raw/creditcard.csv
+    outs:
+      - data/processed/features.parquet
+
+  train:
+    cmd: python -m src.train --data-path data/processed/features.parquet --n-estimators ${train.n_estimators} --test-size ${train.test_size}
+    deps:
+      - src/train.py
+      - src/features.py
+      - data/processed/features.parquet
+    params:
+      - params.yaml:
+          - train.n_estimators
+          - train.test_size
+    outs:
+      - model/model.json
+      - model/scaler.pkl
+    metrics:
+      - metrics.json:
+          cache: false
+
+  evaluate:
+    cmd: python -m src.evaluate --model-path model/model.json --scaler-path model/scaler.pkl --data-path data/processed/features.parquet
+    deps:
+      - src/evaluate.py
+      - src/features.py
+      - data/processed/features.parquet
+      - model/model.json
+      - model/scaler.pkl
+    metrics:
+      - eval_metrics.json:
+          cache: false

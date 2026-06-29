@@ -150,7 +150,7 @@ activemq-data/
 # Environments
 .env
 .envrc
-.venv
+.venv/
 env/
 venv/
 ENV/
@@ -203,6 +203,18 @@ cython_debug/
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
 
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+tfplan
+
+# DVC manages its own .gitignore files inside data/ dirs — no manual rules needed here
+
+# MLflow local SQLite fallback (created when no tracking server is reachable)
+mlflow.db
+mlruns/
+
 # Ruff stuff:
 .ruff_cache/
 
@@ -216,3 +228,32 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# DVC
+.dvc/tmp/
+.dvc/cache/
+
+# Model artifacts
+*.pkl
+*.joblib
+*.h5
+*.onnx
+*.pt
+*.pth
+
+# (data dir rules consolidated above under "DVC data")
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
+
+# OS
+.DS_Store
+Thumbs.db

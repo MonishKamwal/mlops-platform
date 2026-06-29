@@ -1,0 +1,19 @@
+name: Hotfix
+
+on:
+  workflow_dispatch:
+    inputs:
+      description:
+        description: Brief description of the hotfix
+        required: true
+
+# TODO (Phase 4): Implement hotfix fast-path pipeline
+# Steps:
+#   1. Fast-path CI — lint + unit tests only (no integration suite)
+#   2. Immediate production deploy, no canary (tagged hotfix-<sha>)
+#   3. Open automated backmerge PR against develop — fail loudly on conflicts
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Hotfix '${{ inputs.description }}' — to be implemented in Phase 4"
