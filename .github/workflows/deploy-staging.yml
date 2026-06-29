@@ -4,15 +4,178 @@ on:
   push:
     branches: [staging]
 
-# TODO (Phase 2): Implement staging deploy
-# Steps:
-#   1. Build and push image to GHCR tagged staging-<sha>
-#   2. Run integration tests against the image
-#   3. Deploy to AKS staging namespace
-#   4. Run model validation smoke tests (latency, accuracy threshold)
-#   5. Update MLflow model stage: None → Staging
+env:
+  IMAGE: ghcr.io/monishkamwal/mlops-platform
+  NAMESPACE: staging
+
 jobs:
-  placeholder:
+  build-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.tag.outputs.value }}
     steps:
-      - run: echo "Staging deploy — to be implemented in Phase 2"
+      - uses: actions/checkout@v4
+
+      - id: tag
+        run: echo "value=staging-${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v5
+        with:
+          context: ./serving
+          push: true
+          tags: ${{ env.IMAGE }}:${{ steps.tag.outputs.value }}
+
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: build-push
+    permissions:
+      packages: read
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Test /health against running container
+        run: |
+          docker run -d --name serving -p 8000:8000 \
+            ${{ env.IMAGE }}:${{ needs.build-push.outputs.tag }}
+          for i in $(seq 1 15); do
+            sleep 2
+            curl -sf http://localhost:8000/health && echo "OK" && break
+            [ "$i" -eq 15 ] && echo "Timed out waiting for /health" && exit 1
+          done
+          docker stop serving
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: integration-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - uses: azure/aks-set-context@v3
+        with:
+          resource-group: ${{ secrets.AKS_RESOURCE_GROUP }}
+          cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
+
+      - name: Create namespace
+        run: kubectl apply -f serving/k8s/namespace.yaml
+
+      - name: Sync image pull secret
+        run: |
+          kubectl create secret docker-registry ghcr-pull \
+            --namespace=${{ env.NAMESPACE }} \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GHCR_PAT }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Sync MLflow secrets
+        run: |
+          kubectl create secret generic mlflow-secrets \
+            --namespace=${{ env.NAMESPACE }} \
+            --from-literal=fraud-model-uri=${{ secrets.FRAUD_MODEL_URI }} \
+            --from-literal=tracking-uri=${{ secrets.MLFLOW_TRACKING_URI }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply manifests
+        run: |
+          TAG=${{ needs.build-push.outputs.tag }}
+          sed "s|IMAGE_PLACEHOLDER|${{ env.IMAGE }}:${TAG}|g" serving/k8s/deployment.yaml \
+            | kubectl apply -f -
+          kubectl apply -f serving/k8s/service.yaml
+          kubectl apply -f serving/k8s/hpa.yaml
+          kubectl apply -f serving/k8s/ingress.yaml
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/fraud-serving \
+            -n ${{ env.NAMESPACE }} --timeout=300s
+
+  smoke-test:
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - uses: azure/aks-set-context@v3
+        with:
+          resource-group: ${{ secrets.AKS_RESOURCE_GROUP }}
+          cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
+
+      - name: Latency and response-shape validation
+        run: |
+          kubectl port-forward svc/fraud-serving 8080:80 \
+            -n ${{ env.NAMESPACE }} &
+          PF_PID=$!
+          trap "kill $PF_PID 2>/dev/null" EXIT
+          sleep 5
+
+          python3 - <<'PYEOF'
+          import json, sys, time, urllib.request, urllib.error
+
+          BASE = "http://localhost:8080"
+
+          # 1. Health check
+          with urllib.request.urlopen(f"{BASE}/health", timeout=5) as r:
+              assert r.status == 200, f"/health returned {r.status}"
+          print("health: OK")
+
+          # 2. Latency + response-shape on /predict/fraud
+          payload = json.dumps({"features": [0.0] * 29}).encode()
+          req = urllib.request.Request(
+              f"{BASE}/predict/fraud",
+              data=payload,
+              headers={"Content-Type": "application/json"},
+          )
+          t0 = time.monotonic()
+          with urllib.request.urlopen(req, timeout=10) as r:
+              body = json.loads(r.read())
+          latency_ms = (time.monotonic() - t0) * 1000
+
+          assert latency_ms < 500, f"Latency {latency_ms:.0f}ms exceeds 500ms threshold"
+          assert "fraud_probability" in body, f"Missing fraud_probability in {body}"
+          assert 0.0 <= body["fraud_probability"] <= 1.0, (
+              f"fraud_probability out of range: {body['fraud_probability']}"
+          )
+          print(f"predict/fraud: latency={latency_ms:.0f}ms  fraud_probability={body['fraud_probability']}")
+          PYEOF
+
+  promote-model:
+    runs-on: ubuntu-latest
+    needs: smoke-test
+    env:
+      MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+      MLFLOW_MODEL_VERSION: ${{ secrets.MLFLOW_MODEL_VERSION }}
+    steps:
+      - name: Transition fraud-detection to Staging
+        run: |
+          pip install --quiet mlflow
+          python3 - <<'PYEOF'
+          import os, mlflow
+          client = mlflow.tracking.MlflowClient()
+          version = os.environ["MLFLOW_MODEL_VERSION"]
+          client.transition_model_version_stage(
+              name="fraud-detection",
+              version=version,
+              stage="Staging",
+              archive_existing_versions=True,
+          )
+          print(f"fraud-detection v{version} promoted to Staging")
+          PYEOF
