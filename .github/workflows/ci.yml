@@ -15,8 +15,15 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      - name: Install dev dependencies
-        run: pip install ruff mypy pytest pandas numpy scikit-learn
+      - name: Install dependencies
+        run: |
+          pip install \
+            ruff mypy pytest \
+            pandas numpy scikit-learn \
+            mlflow xgboost lightgbm \
+            fastapi uvicorn pydantic \
+            prometheus-fastapi-instrumentator \
+            httpx
 
       - name: Lint
         run: ruff check .
@@ -25,19 +32,38 @@ jobs:
         run: mypy serving/ --ignore-missing-imports
 
       - name: Unit tests
-        run: pytest models/ serving/ -v --tb=short -q
+        run: pytest models/ serving/ -v --tb=short
 
   docker-build-check:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        context:
-          - serving
-          - models/fraud-detection
-          - models/sentiment-analysis
-          - models/demand-forecasting
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Build ${{ matrix.context }}
-        run: docker build ${{ matrix.context }} --tag smoke-check:latest
+      - name: Detect changed paths
+        id: changes
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          check() { echo "$CHANGED" | grep -q "^$1/" && echo "true" || echo "false"; }
+          echo "serving=$(check serving)" >> $GITHUB_OUTPUT
+          echo "fraud=$(check models/fraud-detection)" >> $GITHUB_OUTPUT
+          echo "sentiment=$(check models/sentiment-analysis)" >> $GITHUB_OUTPUT
+          echo "forecast=$(check models/demand-forecasting)" >> $GITHUB_OUTPUT
+
+      - name: Build serving
+        if: steps.changes.outputs.serving == 'true'
+        run: docker build serving --tag smoke-check-serving:latest
+
+      - name: Build fraud-detection
+        if: steps.changes.outputs.fraud == 'true'
+        run: docker build models/fraud-detection --tag smoke-check-fraud:latest
+
+      - name: Build sentiment-analysis
+        if: steps.changes.outputs.sentiment == 'true'
+        run: docker build models/sentiment-analysis --tag smoke-check-sentiment:latest
+
+      - name: Build demand-forecasting
+        if: steps.changes.outputs.forecast == 'true'
+        run: docker build models/demand-forecasting --tag smoke-check-forecast:latest
