@@ -6,6 +6,7 @@ services:
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
       FRAUD_MODEL_DIR: /models/fraud-detection/model
+      # TODO: set FRAUD_MODEL_URI to the MLflow registry URI once MLflow is deployed on AKS (Phase 2)
       FRAUD_MODEL_URI: ${FRAUD_MODEL_URI:-}
       SENTIMENT_MODEL_URI: ${SENTIMENT_MODEL_URI:-}
       FORECAST_MODEL_URI: ${FORECAST_MODEL_URI:-}
