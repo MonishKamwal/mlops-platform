@@ -204,7 +204,7 @@ Design principle: every technical component has a plain-English tooltip for non-
 - [x] DVC pipeline: data → features → train → evaluate
 - [x] Model registered in MLflow Model Registry
 - [x] FastAPI endpoint `/predict/fraud`
-- [ ] GitHub Actions CI (lint, test, build)
+- [x] GitHub Actions CI (lint, test, build)
 - [ ] Deploy to AKS staging
 
 ### Phase 3 — Model 2: Sentiment Analysis (Weeks 6–7)
