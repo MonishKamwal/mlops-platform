@@ -121,6 +121,7 @@ feature/* ──► develop ──► staging ──► main (production)
 **Merge to `develop` (`deploy-dev.yml`, on-demand):** Build + push to GHCR (`dev-<sha>`), deploy to AKS `dev` namespace.
 
 **develop → staging merged (`deploy-staging.yml`):**
+
 1. Build + push to GHCR (`staging-<sha>`)
 2. Integration tests
 3. Deploy to AKS `staging` namespace
@@ -128,6 +129,7 @@ feature/* ──► develop ──► staging ──► main (production)
 5. Update MLflow model stage: `None → Staging`
 
 **staging → main merged (`deploy-prod.yml`):**
+
 1. Build + push to GHCR (`prod-<sha>`)
 2. Canary deploy: 10% traffic
 3. Monitor 10 min (error rate, latency, drift via Prometheus)
@@ -189,6 +191,7 @@ Design principle: every technical component has a plain-English tooltip for non-
 ## Phased Timeline
 
 ### Phase 1 — Foundation (Weeks 1–3) ✓
+
 - [x] GitHub repo, branch protection, repo structure scaffold
 - [x] Terraform: AKS (1 node), Azure Blob Storage, Key Vault — config written + plan validated; `apply` deferred to save costs until Phase 2
 - [x] MLflow server deployed locally via Docker Compose; AKS deployment deferred to Phase 2 (requires `terraform apply`)
@@ -196,26 +199,30 @@ Design principle: every technical component has a plain-English tooltip for non-
 - [x] DVC initialized, Azure Blob as remote
 
 ### Phase 2 — Model 1: Fraud Detection (Weeks 4–5)
-- [ ] Training script with MLflow tracking (params, metrics, artifacts)
-- [ ] DVC pipeline: data → features → train → evaluate
-- [ ] Model registered in MLflow Model Registry
-- [ ] FastAPI endpoint `/predict/fraud`
-- [ ] GitHub Actions CI (lint, test, build)
+
+- [x] Training script with MLflow tracking (params, metrics, artifacts)
+- [x] DVC pipeline: data → features → train → evaluate
+- [x] Model registered in MLflow Model Registry
+- [x] FastAPI endpoint `/predict/fraud`
+- [x] GitHub Actions CI (lint, test, build)
 - [ ] Deploy to AKS staging
 
 ### Phase 3 — Model 2: Sentiment Analysis (Weeks 6–7)
+
 - [ ] DistilBERT fine-tuning script with MLflow
 - [ ] FastAPI endpoint `/predict/sentiment`
 - [ ] Deploy to AKS staging alongside Model 1
 - [ ] Full CI/CD pipeline for Model 2
 
 ### Phase 4 — Model 3: Demand Forecasting (Weeks 8–9)
+
 - [ ] LightGBM/Prophet training pipeline
 - [ ] FastAPI endpoint `/predict/forecast`
 - [ ] All three models live in staging
 - [ ] Production deploy pipeline with canary logic
 
 ### Phase 5 — Monitoring & Observability (Weeks 10–11)
+
 - [ ] Evidently AI drift detection (AKS CronJob)
 - [ ] Prometheus scraping FastAPI + Evidently metrics
 - [ ] Grafana dashboards: per-model + system overview
@@ -223,11 +230,13 @@ Design principle: every technical component has a plain-English tooltip for non-
 - [ ] Loki log aggregation
 
 ### Phase 6 — Portfolio Site (Weeks 12–13)
+
 - [ ] Next.js site scaffold, Vercel deployment
 - [ ] Architecture diagram, live model demos, embedded Grafana panels
 - [ ] monish.io domain configured on Vercel
 
 ### Phase 7 — Polish & Documentation (Weeks 14–16)
+
 - [ ] ADRs for key decisions
 - [ ] README with architecture overview and quickstart
 - [ ] Demo videos / GIFs for GitHub README
