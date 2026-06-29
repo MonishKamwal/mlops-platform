@@ -16,7 +16,7 @@ jobs:
           cache: pip
 
       - name: Install dev dependencies
-        run: pip install ruff mypy pytest pandas numpy scikit-learn
+        run: pip install ruff mypy pytest pandas numpy scikit-learn fastapi httpx2 "prometheus-fastapi-instrumentator>=7.0"
 
       - name: Lint
         run: ruff check .
