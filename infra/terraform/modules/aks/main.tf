@@ -8,7 +8,7 @@ resource "azurerm_kubernetes_cluster" "this" {
   default_node_pool {
     name       = "default"
     node_count = 1
-    vm_size    = "Standard_B2s"
+    vm_size    = "Standard_D2s_v7"
 
     # Allow cluster autoscaler to scale to 0 (nightly teardown via scheduled Action)
     enable_auto_scaling = true

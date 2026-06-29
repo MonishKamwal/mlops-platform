@@ -8,13 +8,12 @@ terraform {
     }
   }
 
-  # Uncomment after first apply to store state in Azure Blob
-  # backend "azurerm" {
-  #   resource_group_name  = "mlops-tfstate-rg"
-  #   storage_account_name = "<your-tfstate-storage-account>"
-  #   container_name       = "tfstate"
-  #   key                  = "staging.terraform.tfstate"
-  # }
+  backend "azurerm" {
+    resource_group_name  = "mlops-tfstate-rg"
+    storage_account_name = "mlopstfstatemonish"
+    container_name       = "tfstate"
+    key                  = "staging.terraform.tfstate"
+  }
 }
 
 provider "azurerm" {

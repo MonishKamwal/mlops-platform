@@ -275,4 +275,83 @@ Each entry records what was done, what was learned, and any concepts that clicke
 - `archive_existing_versions=True` automatically moves any *other* version that was in `Staging` to `Archived` — ensures only one version holds the stage at a time
 - This is the last step in the pipeline: code is deployed, smoke tests passed, so the model that's live in AKS is officially the Staging model
 
+---
+
+### Infrastructure Pivot: AKS → Azure VM + k3s
+
+**What happened:**
+
+The original plan used Azure Kubernetes Service (AKS) — a managed Kubernetes offering — provisioned via Terraform. Three consecutive `terraform apply` attempts failed before the cluster ever started:
+
+1. **K8s version EOL** — `1.29` was specified in the Terraform module; Azure had already removed it from eastus. Fixed by bumping to `1.32`.
+2. **LTS-only patch** — Azure resolved `1.32` to patch `1.32.11`, which requires the paid Premium/LTS tier on free subscriptions. Fixed by bumping to `1.33`.
+3. **VM family quota** — `Standard_B2s` is not available on free Azure subscriptions; switched to `Standard_D2s_v7`. The subscription had 0 vCPU quota for the `StandardDsv7Family` in eastus. Submitted a quota increase request via Azure Portal — **denied**. Changed region to `westus2` and restarted the destroy/apply cycle; Terraform hung for >6 minutes on Key Vault soft-delete.
+
+At this point three hours had been spent on infra that had not yet run a single container.
+
+**Decision process:**
+
+The core goal was a live, publicly accessible endpoint to demonstrate on a portfolio website — not a managed control plane. The question became: is AKS *necessary* for that goal, or just the first approach we tried?
+
+Kubernetes itself is open-source software. AKS, GKE, and EKS are managed wrappers around it — they run the control plane on your behalf and charge for that convenience plus the underlying VMs. A free Azure subscription imposes per-family vCPU quotas specifically on the *VM pool* used by managed services. A plain Azure VM does not hit those same quota gates.
+
+Alternatives evaluated:
+
+| Option | Cost | Complexity | Public URL |
+|---|---|---|---|
+| AKS (original) | Free tier VM quota → blocked | Terraform managed | Yes (LoadBalancer) |
+| Oracle Cloud Free Tier + k3s | Always free | Manual VM setup | Yes (public IP) |
+| Hetzner Cloud VM + k3s | ~€4/month | Manual VM setup | Yes |
+| Azure VM + k3s | Pay-as-you-go (~$0.10/hr B2s) | Stays in Azure | Yes |
+
+**Decision: Azure VM + k3s.**
+
+Rationale:
+- The rest of the stack (DVC, MLflow, Azure Blob for DVC remote, GitHub Actions) is already on Azure. Keeping the VM in Azure avoids cross-cloud credential management.
+- An Azure VM does not have the same K8s-specific version and VM family quota restrictions as AKS — you install whatever Linux distribution and k3s version you want.
+- k3s is CNCF-certified Kubernetes — all existing manifests in `serving/k8s/` work without modification.
+- Cost is predictable and comparable to AKS: a `Standard_B2s` VM (~$0.05/hr) running k3s is cheaper than the minimum AKS node pool because there is no managed control plane markup.
+- Stays in the portfolio story: "provisioned and managed a Kubernetes cluster on Azure infrastructure."
+
+**Architectural shifts:**
+
+*What is removed:*
+- `infra/terraform/modules/aks/` — the AKS-specific Terraform module
+- `infra/terraform/modules/keyvault/` — Key Vault was only needed to pass secrets into AKS pods; k3s pods read secrets from Kubernetes secrets directly (already the pattern in the deploy workflow)
+- `azure/login@v2` + `azure/aks-set-context@v3` steps in the deploy workflow
+- `AZURE_CREDENTIALS` GitHub secret (the Service Principal JSON blob)
+
+*What is added:*
+- `infra/terraform/modules/vm/` — Terraform module to provision an Azure Linux VM (Ubuntu, Standard_B2s), open ports 22/80/443, attach a public IP
+- k3s installed on that VM via a cloud-init script or post-provision remote-exec provisioner
+- `KUBECONFIG` GitHub secret — the `/etc/rancher/k3s/k3s.yaml` file content from the VM, with the server IP substituted; used by the deploy workflow to authenticate kubectl
+- SSH key pair — private key stored as a GitHub secret for any remote-exec steps; public key embedded in the VM
+
+*What is unchanged:*
+- All 5 Kubernetes manifests (`namespace.yaml`, `deployment.yaml`, `service.yaml`, `hpa.yaml`, `ingress.yaml`)
+- The 5-job deploy workflow structure and every job except the `deploy` job's cluster-auth steps
+- `GHCR_PAT` secret for image pull at runtime
+- `MLFLOW_TRACKING_URI` and `FRAUD_MODEL_URI` secrets used to create the `mlflow-secrets` K8s secret in the deploy job
+- DVC pipeline, MLflow tracking, GitHub Actions CI — no changes
+
+**What I learned:**
+
+**Managed K8s vs. self-managed K8s**
+- Managed services (AKS/GKE/EKS) run the Kubernetes control plane (API server, etcd, scheduler, controller-manager) on your behalf. You pay for the convenience and get SLA guarantees on the control plane.
+- k3s packages the entire control plane into a single ~70 MB binary. On a VM, `curl -sfL https://get.k3s.io | sh -` installs a production-grade, CNCF-conformant cluster in under 60 seconds.
+- The worker nodes and pods are identical between managed and self-managed — the same Docker images, the same YAML manifests, the same `kubectl` commands. The only difference is who manages the control plane process.
+
+**Why free-tier subscriptions impose stricter limits on managed K8s than on plain VMs**
+- Azure free subscriptions have per-VM-family vCPU quotas. AKS node pools count against these quotas *and* additionally restrict which K8s versions and VM families are supported for the managed offering.
+- A plain Linux VM only hits the vCPU quota — the same `Standard_B2s` that was rejected as an AKS node pool is available as a standalone VM on the same subscription.
+
+**Key Vault soft-delete behaviour**
+- Azure Key Vault has a soft-delete protection enabled by default (and mandatory since 2021). When Terraform destroys a Key Vault, Azure moves it to a "soft-deleted" state and holds it for 7–90 days before purging.
+- `purge_soft_delete_on_destroy = true` in the Terraform provider block tells it to also call the purge API — but Azure enforces a delay before the purge API accepts the call, causing Terraform to poll and appear stuck.
+- If this happens: cancel Terraform, go to Portal → Key Vaults → Manage deleted vaults → Purge manually. The resource group and other resources can be deleted independently.
+
+**kubeconfig as a CI secret**
+- k3s writes its kubeconfig to `/etc/rancher/k3s/k3s.yaml` on the server with `server: https://127.0.0.1:6443`. To use it from GitHub Actions, substitute the loopback address with the VM's public IP and store the whole file as a secret.
+- The deploy job writes it to `~/.kube/config` and all subsequent `kubectl` commands in the job authenticate automatically — the same end state as `azure/aks-set-context@v3` but without any Azure-specific action.
+
 <!-- Add new entries below as the project progresses -->
