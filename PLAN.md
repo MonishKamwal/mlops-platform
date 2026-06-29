@@ -5,7 +5,7 @@
 Production-grade MLOps platform built on Azure demonstrating end-to-end machine learning engineering: training, experiment tracking, containerized deployment on Kubernetes, model monitoring, and automated rollback. Built as a portfolio project for technical and non-technical audiences via a showcase site at monish.io.
 
 **Timeline:** 3–4 months (16 weeks)
-**Infrastructure:** Azure Student tier (~$100 credit), cost-guarded
+**Infrastructure:** Azure VM + k3s (self-managed Kubernetes), Azure Blob for DVC remote
 
 ---
 
@@ -27,19 +27,18 @@ Each model has its own training script, evaluation script, DVC-tracked data, Doc
 |---|---|---|
 | Source control | GitHub (public monorepo) | Portfolio visibility, free Actions minutes |
 | CI/CD | GitHub Actions | Industry standard, free for public repos |
-| Experiment tracking | MLflow (self-hosted in AKS) | Open-source, shows infra ownership |
+| Experiment tracking | MLflow (self-hosted in k3s) | Open-source, shows infra ownership |
 | Model registry | MLflow Model Registry | Co-located with tracking server |
 | Data versioning | DVC + Azure Blob Storage | Industry standard, reproducibility |
 | ML frameworks | scikit-learn, XGBoost, HuggingFace Transformers, LightGBM, Prophet | Breadth showcase |
 | Model serving | FastAPI + Uvicorn | REST API, industry standard |
 | Containerization | Docker + Docker Compose (local dev) | Consistent environments |
 | Container registry | GitHub Container Registry (GHCR) | Free, integrated with Actions |
-| Orchestration | AKS — 1-node Standard_B2s, cost-guarded | Real Kubernetes |
-| IaC | Terraform (Azure provider) | Transferable, employer-recognizable |
+| Orchestration | k3s on Azure VM (Standard_B2s) | Self-managed Kubernetes, no quota gates |
 | Monitoring / Drift | Evidently AI | Open-source, purpose-built for ML drift |
 | Metrics | Prometheus + Grafana | Industry standard observability |
 | Logging | Grafana Loki | Lightweight, integrates with Grafana |
-| Secrets | Azure Key Vault | Azure-native, security awareness |
+| Secrets | Kubernetes secrets + GitHub Actions secrets | No managed secret store needed |
 | Portfolio site | Next.js on Vercel + monish.io | Free hosting, live model demos |
 
 ---
@@ -70,12 +69,7 @@ mlops-platform/
 │   ├── prometheus/             # prometheus.yml, alert rules
 │   └── grafana/                # Dashboard JSON exports
 ├── infra/
-│   ├── terraform/
-│   │   ├── modules/            # aks, keyvault, storage (reusable)
-│   │   └── environments/
-│   │       ├── staging/
-│   │       └── production/
-│   └── scripts/                # bootstrap, teardown helpers
+│   └── scripts/                # vm-setup.sh (k3s install), teardown helpers
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml              # Lint, type-check, unit tests (every PR)
@@ -102,7 +96,7 @@ feature/* ──► develop ──► staging ──► main (production)
                                     hotfix/* (→ main, then backmerge to develop)
 ```
 
-| Branch | AKS Namespace | Image Tag | Trigger |
+| Branch | k3s Namespace | Image Tag | Trigger |
 |---|---|---|---|
 | `feature/*` | none (CI only) | — | PR open / push |
 | `develop` | `dev` (on-demand) | `dev-<sha>` | merge to develop |
@@ -118,13 +112,13 @@ feature/* ──► develop ──► staging ──► main (production)
 
 **PR to `develop` (`ci.yml`):** Lint (ruff), type-check (mypy), unit tests (pytest), Docker build smoke test.
 
-**Merge to `develop` (`deploy-dev.yml`, on-demand):** Build + push to GHCR (`dev-<sha>`), deploy to AKS `dev` namespace.
+**Merge to `develop` (`deploy-dev.yml`, on-demand):** Build + push to GHCR (`dev-<sha>`), deploy to k3s `dev` namespace.
 
 **develop → staging merged (`deploy-staging.yml`):**
 
 1. Build + push to GHCR (`staging-<sha>`)
 2. Integration tests
-3. Deploy to AKS `staging` namespace
+3. Deploy to k3s `staging` namespace (via KUBECONFIG secret)
 4. Model validation smoke tests (latency, accuracy threshold)
 5. Update MLflow model stage: `None → Staging`
 
@@ -153,21 +147,19 @@ feature/* ──► develop ──► staging ──► main (production)
 
 ---
 
-## Azure Cost Management
+## Cost Profile
 
 | Resource | SKU | Est. Cost/Month |
 |---|---|---|
-| AKS node pool | 1× Standard_B2s (auto-scale to 0 at night) | ~$30 |
-| Azure Blob Storage | LRS, ~10 GB | ~$1 |
-| Azure Key Vault | Standard | ~$0.50 |
-| Public IP + Load Balancer | Basic | ~$4 |
-| Egress / misc | — | ~$5 |
-| **Total** | | **~$40–45/month** |
+| Azure VM (k3s host) | Standard_B2s, stop when idle | ~$15–30 (or $0 when stopped) |
+| Azure Blob Storage | LRS, ~10 GB (DVC remote) | ~$1 |
+| Public IP | Basic static | ~$4 |
+| Egress / misc | — | ~$2 |
+| **Total** | | **~$20–35/month** |
 
-- Azure budget alerts at $50 (warning) and $80 (stop email)
-- AKS scales to 0 nightly via scheduled GitHub Action
-- GHCR instead of ACR (saves ~$5/month)
-- MLflow runs inside AKS (no separate VM cost)
+- VM can be deallocated (stopped) when not actively demoing — no compute charge while stopped
+- No AKS control plane markup, no Key Vault cost
+- GHCR instead of ACR (free for public repos)
 
 ---
 
@@ -193,8 +185,7 @@ Design principle: every technical component has a plain-English tooltip for non-
 ### Phase 1 — Foundation (Weeks 1–3) ✓
 
 - [x] GitHub repo, branch protection, repo structure scaffold
-- [x] Terraform: AKS (1 node), Azure Blob Storage, Key Vault — config written + plan validated; `apply` deferred to save costs until Phase 2
-- [x] MLflow server deployed locally via Docker Compose; AKS deployment deferred to Phase 2 (requires `terraform apply`)
+- [x] MLflow server deployed locally via Docker Compose
 - [x] Docker Compose local dev stack (api + mlflow + prometheus + grafana)
 - [x] DVC initialized, Azure Blob as remote
 
@@ -205,13 +196,17 @@ Design principle: every technical component has a plain-English tooltip for non-
 - [x] Model registered in MLflow Model Registry
 - [x] FastAPI endpoint `/predict/fraud`
 - [x] GitHub Actions CI (lint, test, build)
-- [ ] Deploy to AKS staging
+- [x] Kubernetes manifests (namespace, deployment, service, hpa, ingress)
+- [x] GitHub Actions staging deploy workflow (5 jobs)
+- [ ] Provision Azure VM + install k3s
+- [ ] Configure KUBECONFIG + GHCR_PAT GitHub secrets
+- [ ] Trigger deploy-staging.yml end-to-end; verify live endpoint
 
 ### Phase 3 — Model 2: Sentiment Analysis (Weeks 6–7)
 
 - [ ] DistilBERT fine-tuning script with MLflow
 - [ ] FastAPI endpoint `/predict/sentiment`
-- [ ] Deploy to AKS staging alongside Model 1
+- [ ] Deploy to k3s staging alongside Model 1
 - [ ] Full CI/CD pipeline for Model 2
 
 ### Phase 4 — Model 3: Demand Forecasting (Weeks 8–9)
@@ -248,7 +243,7 @@ Design principle: every technical component has a plain-English tooltip for non-
 ## Verification Checklist
 
 - [x] `make dev` brings up full local stack (Docker Compose)
-- [ ] `terraform plan` on staging environment shows no drift
+- [ ] Azure VM provisioned, k3s installed, kubeconfig exported
 - [ ] Feature branch push triggers CI (lint + tests)
 - [ ] Merge to `develop` builds image; dev endpoint returns predictions
 - [ ] develop → staging PR triggers staging deploy and model validation
@@ -261,5 +256,5 @@ Design principle: every technical component has a plain-English tooltip for non-
 ## Decisions to Revisit
 
 1. **Serving:** FastAPI is sufficient for 3 models; consider Ray Serve if concurrency becomes a concern.
-2. **AKS fallback:** If Azure credits run low, pivot to Azure Container Apps for Model 3.
+2. **VM cost:** If the Azure VM becomes too costly, the same k3s setup runs identically on Oracle Cloud Free Tier (4 ARM vCPUs, 24 GB RAM — always free).
 3. **MLflow UI:** If self-hosted MLflow looks poor on the portfolio site, mirror runs to a free W&B account for embedded links.
