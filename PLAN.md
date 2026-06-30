@@ -2,10 +2,22 @@
 
 ## Overview
 
-Production-grade MLOps platform built on Azure demonstrating end-to-end machine learning engineering: training, experiment tracking, containerized deployment on Kubernetes, model monitoring, and automated rollback. Built as a portfolio project for technical and non-technical audiences via a showcase site at monish.io.
+Production-grade MLOps platform demonstrating end-to-end machine learning engineering: training pipelines, experiment tracking, containerized deployment on Kubernetes, model monitoring, and automated CI/CD. Built as a portfolio project with a live showcase site.
 
-**Timeline:** 3–4 months (16 weeks)
-**Infrastructure:** Azure Student tier (~$100 credit), cost-guarded
+**Infrastructure:** AWS EC2 t2.micro + k3s (self-managed Kubernetes), Azure Blob for DVC remote  
+**Strategy:** Ship end-to-end pipeline with a placeholder model first, then upgrade the model and connect to the portfolio site.
+
+---
+
+## Phased Roadmap
+
+| Phase | Goal |
+|---|---|
+| **2 (current)** | End-to-end MLOps pipeline live with placeholder fraud detection model |
+| **3** | Monitoring, observability, production deploy pipeline (Evidently, Prometheus, Grafana, canary) |
+| **4** | Portfolio site at moish.github.io |
+| **5** | Connect MLOps project to portfolio site — live endpoint demo, architecture page, embedded dashboards |
+| **6** | Model upgrades + Models 2 & 3 (future consideration) |
 
 ---
 
@@ -17,7 +29,7 @@ Production-grade MLOps platform built on Azure demonstrating end-to-end machine 
 | 2 | **Sentiment Analysis** | NLP / Text Classification | DistilBERT (HuggingFace) | IMDB / Twitter dataset |
 | 3 | **Demand Forecasting** | Time Series / Regression | LightGBM + Prophet | Open retail/energy dataset |
 
-Each model has its own training script, evaluation script, DVC-tracked data, Dockerfile, and MLflow experiment namespace.
+Model 1 is currently a placeholder — pipeline correctness is the goal, not model quality. Models 2 and 3 are future phases.
 
 ---
 
@@ -27,20 +39,19 @@ Each model has its own training script, evaluation script, DVC-tracked data, Doc
 |---|---|---|
 | Source control | GitHub (public monorepo) | Portfolio visibility, free Actions minutes |
 | CI/CD | GitHub Actions | Industry standard, free for public repos |
-| Experiment tracking | MLflow (self-hosted in AKS) | Open-source, shows infra ownership |
+| Experiment tracking | MLflow (self-hosted in k3s) | Open-source, shows infra ownership |
 | Model registry | MLflow Model Registry | Co-located with tracking server |
 | Data versioning | DVC + Azure Blob Storage | Industry standard, reproducibility |
 | ML frameworks | scikit-learn, XGBoost, HuggingFace Transformers, LightGBM, Prophet | Breadth showcase |
 | Model serving | FastAPI + Uvicorn | REST API, industry standard |
 | Containerization | Docker + Docker Compose (local dev) | Consistent environments |
 | Container registry | GitHub Container Registry (GHCR) | Free, integrated with Actions |
-| Orchestration | AKS — 1-node Standard_B2s, cost-guarded | Real Kubernetes |
-| IaC | Terraform (Azure provider) | Transferable, employer-recognizable |
+| Orchestration | k3s on AWS EC2 t2.micro | Self-managed Kubernetes, free tier eligible |
 | Monitoring / Drift | Evidently AI | Open-source, purpose-built for ML drift |
 | Metrics | Prometheus + Grafana | Industry standard observability |
 | Logging | Grafana Loki | Lightweight, integrates with Grafana |
-| Secrets | Azure Key Vault | Azure-native, security awareness |
-| Portfolio site | Next.js on Vercel + monish.io | Free hosting, live model demos |
+| Secrets | Kubernetes secrets + GitHub Actions secrets | No managed secret store needed |
+| Portfolio site | GitHub Pages at moish.github.io | Free hosting, live model demos |
 
 ---
 
@@ -59,10 +70,10 @@ mlops-platform/
 │   │   ├── tests/
 │   │   ├── Makefile
 │   │   └── Dockerfile
-│   ├── sentiment-analysis/     # Same structure
-│   └── demand-forecasting/     # Same structure
+│   ├── sentiment-analysis/     # Future
+│   └── demand-forecasting/     # Future
 ├── serving/
-│   ├── api/                    # FastAPI app (all 3 model routes)
+│   ├── api/                    # FastAPI app (all model routes)
 │   ├── Dockerfile
 │   └── k8s/                    # Deployment, Service, HPA, Ingress manifests
 ├── monitoring/
@@ -70,17 +81,11 @@ mlops-platform/
 │   ├── prometheus/             # prometheus.yml, alert rules
 │   └── grafana/                # Dashboard JSON exports
 ├── infra/
-│   ├── terraform/
-│   │   ├── modules/            # aks, keyvault, storage (reusable)
-│   │   └── environments/
-│   │       ├── staging/
-│   │       └── production/
-│   └── scripts/                # bootstrap, teardown helpers
+│   └── scripts/                # vm-setup.sh (k3s install + swap), teardown helpers
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml              # Lint, type-check, unit tests (every PR)
 │       ├── train.yml           # Re-train on data/code change
-│       ├── deploy-dev.yml      # On-demand deploy to dev namespace
 │       ├── deploy-staging.yml  # develop → staging merge
 │       ├── deploy-prod.yml     # staging → main merge (canary)
 │       └── hotfix.yml          # Fast-path prod deploy + backmerge PR
@@ -102,7 +107,7 @@ feature/* ──► develop ──► staging ──► main (production)
                                     hotfix/* (→ main, then backmerge to develop)
 ```
 
-| Branch | AKS Namespace | Image Tag | Trigger |
+| Branch | k3s Namespace | Image Tag | Trigger |
 |---|---|---|---|
 | `feature/*` | none (CI only) | — | PR open / push |
 | `develop` | `dev` (on-demand) | `dev-<sha>` | merge to develop |
@@ -112,20 +117,16 @@ feature/* ──► develop ──► staging ──► main (production)
 
 **Branch protection (all long-lived branches):** no direct pushes, required status checks, PR-only merges.
 
-**Hotfix rule:** Every hotfix merged to `main` must be backmerged to `develop`. A GitHub Actions step automatically opens the backmerge PR and fails loudly on conflicts.
-
 ### Pipeline Stages
 
 **PR to `develop` (`ci.yml`):** Lint (ruff), type-check (mypy), unit tests (pytest), Docker build smoke test.
 
-**Merge to `develop` (`deploy-dev.yml`, on-demand):** Build + push to GHCR (`dev-<sha>`), deploy to AKS `dev` namespace.
-
 **develop → staging merged (`deploy-staging.yml`):**
 
 1. Build + push to GHCR (`staging-<sha>`)
-2. Integration tests
-3. Deploy to AKS `staging` namespace
-4. Model validation smoke tests (latency, accuracy threshold)
+2. Integration tests (container health check)
+3. Deploy to k3s `staging` namespace (via KUBECONFIG secret)
+4. Smoke tests (latency + response shape)
 5. Update MLflow model stage: `None → Staging`
 
 **staging → main merged (`deploy-prod.yml`):**
@@ -153,27 +154,21 @@ feature/* ──► develop ──► staging ──► main (production)
 
 ---
 
-## Azure Cost Management
+## Cost Profile
 
 | Resource | SKU | Est. Cost/Month |
 |---|---|---|
-| AKS node pool | 1× Standard_B2s (auto-scale to 0 at night) | ~$30 |
-| Azure Blob Storage | LRS, ~10 GB | ~$1 |
-| Azure Key Vault | Standard | ~$0.50 |
-| Public IP + Load Balancer | Basic | ~$4 |
-| Egress / misc | — | ~$5 |
-| **Total** | | **~$40–45/month** |
-
-- Azure budget alerts at $50 (warning) and $80 (stop email)
-- AKS scales to 0 nightly via scheduled GitHub Action
-- GHCR instead of ACR (saves ~$5/month)
-- MLflow runs inside AKS (no separate VM cost)
+| AWS EC2 (k3s host) | t2.micro, free tier | $0 for 12 months, then ~$8.50 |
+| Azure Blob Storage | LRS, ~10 GB (DVC remote) | ~$1 |
+| AWS Elastic IP | Attached to running instance | $0 (free while attached) |
+| Egress / misc | — | ~$1 |
+| **Total** | | **~$2/month (free tier), ~$10/month after** |
 
 ---
 
-## Portfolio Showcase Site (monish.io)
+## Portfolio Site (moish.github.io)
 
-Separate repo: `mlops-portfolio-site` — Next.js on Vercel, custom domain.
+Separate repo: `moish.github.io` — GitHub Pages, static site.
 
 | Page | Content |
 |---|---|
@@ -187,79 +182,80 @@ Separate repo: `mlops-portfolio-site` — Next.js on Vercel, custom domain.
 Design principle: every technical component has a plain-English tooltip for non-technical visitors.
 
 ---
-
-## Phased Timeline
-
 ### Phase 1 — Foundation (Weeks 1–3) ✓
 
 - [x] GitHub repo, branch protection, repo structure scaffold
-- [x] Terraform: AKS (1 node), Azure Blob Storage, Key Vault — config written + plan validated; `apply` deferred to save costs until Phase 2
-- [x] MLflow server deployed locally via Docker Compose; AKS deployment deferred to Phase 2 (requires `terraform apply`)
+- [x] MLflow server deployed locally via Docker Compose
 - [x] Docker Compose local dev stack (api + mlflow + prometheus + grafana)
 - [x] DVC initialized, Azure Blob as remote
 
-### Phase 2 — Model 1: Fraud Detection (Weeks 4–5)
+## Phase 2 — End-to-End Pipeline (Current)
+
+All code is written. Remaining tasks are infrastructure wiring only.
 
 - [x] Training script with MLflow tracking (params, metrics, artifacts)
 - [x] DVC pipeline: data → features → train → evaluate
-- [x] Model registered in MLflow Model Registry
+- [x] Model registered in MLflow Model Registry (placeholder — pipeline completeness is the goal)
 - [x] FastAPI endpoint `/predict/fraud`
 - [x] GitHub Actions CI (lint, test, build)
-- [ ] Deploy to AKS staging
+- [x] Kubernetes manifests (namespace, deployment, service, hpa, ingress)
+- [x] GitHub Actions staging deploy workflow (5 jobs)
+- [x] `learning.md` updated with AKS + Azure VM failures, infrastructure pivot decision
+- [ ] Provision AWS EC2 t2.micro (Ubuntu 22.04, ports 22/80/443/6443 open)
+- [ ] Add 1GB swap file on the VM
+- [ ] Install k3s on the VM
+- [ ] Export kubeconfig (substitute 127.0.0.1 → EC2 public IP)
+- [ ] Update `deploy-staging.yml`: remove `azure/login` + `azure/aks-set-context` from `deploy` and `smoke-test` jobs; replace with KUBECONFIG setup step
+- [ ] Set GitHub secrets: `KUBECONFIG`, `GHCR_PAT`, `MLFLOW_TRACKING_URI`, `FRAUD_MODEL_URI`, `MLFLOW_MODEL_VERSION`
+- [ ] Merge `feat/deploy-aks-staging` → `staging` branch to trigger `deploy-staging.yml`
+- [ ] Verify live `/predict/fraud` endpoint responds
 
-### Phase 3 — Model 2: Sentiment Analysis (Weeks 6–7)
+## Phase 3 — Monitoring & Production Pipeline
 
-- [ ] DistilBERT fine-tuning script with MLflow
-- [ ] FastAPI endpoint `/predict/sentiment`
-- [ ] Deploy to AKS staging alongside Model 1
-- [ ] Full CI/CD pipeline for Model 2
-
-### Phase 4 — Model 3: Demand Forecasting (Weeks 8–9)
-
-- [ ] LightGBM/Prophet training pipeline
-- [ ] FastAPI endpoint `/predict/forecast`
-- [ ] All three models live in staging
-- [ ] Production deploy pipeline with canary logic
-
-### Phase 5 — Monitoring & Observability (Weeks 10–11)
-
-- [ ] Evidently AI drift detection (AKS CronJob)
+- [ ] Evidently AI drift detection (k3s CronJob)
 - [ ] Prometheus scraping FastAPI + Evidently metrics
 - [ ] Grafana dashboards: per-model + system overview
 - [ ] Alertmanager rules + auto-rollback workflow
+- [ ] Production deploy pipeline with canary logic (`deploy-prod.yml`)
 - [ ] Loki log aggregation
 
-### Phase 6 — Portfolio Site (Weeks 12–13)
+## Phase 4 — Portfolio Site (moish.github.io)
 
-- [ ] Next.js site scaffold, Vercel deployment
-- [ ] Architecture diagram, live model demos, embedded Grafana panels
-- [ ] monish.io domain configured on Vercel
+- [ ] Create `moish.github.io` repo, scaffold static site
+- [ ] Architecture page with MLOps platform diagram
+- [ ] Home page with live API health badge linked to staging endpoint
+- [ ] Deploy via GitHub Pages
 
-### Phase 7 — Polish & Documentation (Weeks 14–16)
+## Phase 5 — Connect MLOps to Portfolio
 
-- [ ] ADRs for key decisions
-- [ ] README with architecture overview and quickstart
-- [ ] Demo videos / GIFs for GitHub README
-- [ ] Cost audit, security review
-- [ ] Blog-style writeups for "Behind the Scenes" page
+- [ ] Models page: live demo calling `/predict/fraud` endpoint
+- [ ] CI/CD page: link to GitHub Actions run history
+- [ ] Embedded Grafana dashboards (public read-only panels)
+
+## Phase 6 — Model Upgrades + Models 2 & 3 (Future)
+
+- [ ] Replace placeholder fraud detection model with a properly trained, documented version
+- [ ] DistilBERT sentiment analysis: training pipeline, `/predict/sentiment` endpoint, staging deploy
+- [ ] Demand forecasting: LightGBM/Prophet pipeline, `/predict/forecast` endpoint, staging deploy
+- [ ] All three models live in staging
 
 ---
 
-## Verification Checklist
+## Infrastructure History
 
-- [x] `make dev` brings up full local stack (Docker Compose)
-- [ ] `terraform plan` on staging environment shows no drift
-- [ ] Feature branch push triggers CI (lint + tests)
-- [ ] Merge to `develop` builds image; dev endpoint returns predictions
-- [ ] develop → staging PR triggers staging deploy and model validation
-- [ ] staging → main PR triggers canary deploy; Grafana shows traffic split
-- [ ] Manually shifted dataset triggers Evidently alert → auto-rollback
-- [ ] monish.io/models returns live predictions from production API
+| Decision | Reason |
+|---|---|
+| AKS abandoned | K8s version EOL, LTS-only patch available, VM family quota denied, quota increase denied |
+| Azure VM abandoned | Standard_B2s unavailable in eastus; no alternatives available across all regions and sizes |
+| Terraform dropped | Single VM doesn't need IaC; existing Terraform modules remain in git history as portfolio evidence |
+| Azure Key Vault dropped | K8s secrets created directly in deploy job via `kubectl create secret --dry-run \| kubectl apply` |
+| AWS EC2 t2.micro chosen | Free tier eligible (12 months), k3s runs on 1GB with swap, ~$8.50/month after free tier |
+| DVC Azure Blob kept | Already working, no quota issues, ~$1/month |
 
 ---
 
 ## Decisions to Revisit
 
 1. **Serving:** FastAPI is sufficient for 3 models; consider Ray Serve if concurrency becomes a concern.
-2. **AKS fallback:** If Azure credits run low, pivot to Azure Container Apps for Model 3.
-3. **MLflow UI:** If self-hosted MLflow looks poor on the portfolio site, mirror runs to a free W&B account for embedded links.
+2. **MLflow UI:** If self-hosted MLflow looks poor on the portfolio site, mirror runs to a free W&B account for embedded links.
+3. **Model quality:** Placeholder fraud detection model will be upgraded in Phase 5 — prioritise pipeline correctness now.
