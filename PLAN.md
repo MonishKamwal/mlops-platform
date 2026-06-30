@@ -182,6 +182,7 @@ Separate repo: `moish.github.io` — GitHub Pages, static site.
 Design principle: every technical component has a plain-English tooltip for non-technical visitors.
 
 ---
+
 ### Phase 1 — Foundation (Weeks 1–3) ✓
 
 - [x] GitHub repo, branch protection, repo structure scaffold
