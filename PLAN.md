@@ -14,10 +14,10 @@ Production-grade MLOps platform demonstrating end-to-end machine learning engine
 | Phase | Goal |
 |---|---|
 | **2 (current)** | End-to-end MLOps pipeline live with placeholder fraud detection model |
-| **3** | Portfolio site at moish.github.io (separate project) |
-| **4** | Connect MLOps project to portfolio site — live endpoint demo, architecture page |
-| **5** | Swap placeholder model for something more substantial; add Model 2 + 3 |
-| **6** | Monitoring, observability, production deploy pipeline |
+| **3** | Monitoring, observability, production deploy pipeline (Evidently, Prometheus, Grafana, canary) |
+| **4** | Portfolio site at moish.github.io |
+| **5** | Connect MLOps project to portfolio site — live endpoint demo, architecture page, embedded dashboards |
+| **6** | Model upgrades + Models 2 & 3 (future consideration) |
 
 ---
 
@@ -182,6 +182,12 @@ Separate repo: `moish.github.io` — GitHub Pages, static site.
 Design principle: every technical component has a plain-English tooltip for non-technical visitors.
 
 ---
+### Phase 1 — Foundation (Weeks 1–3) ✓
+
+- [x] GitHub repo, branch protection, repo structure scaffold
+- [x] MLflow server deployed locally via Docker Compose
+- [x] Docker Compose local dev stack (api + mlflow + prometheus + grafana)
+- [x] DVC initialized, Azure Blob as remote
 
 ## Phase 2 — End-to-End Pipeline (Current)
 
@@ -204,27 +210,7 @@ All code is written. Remaining tasks are infrastructure wiring only.
 - [ ] Merge `feat/deploy-aks-staging` → `staging` branch to trigger `deploy-staging.yml`
 - [ ] Verify live `/predict/fraud` endpoint responds
 
-## Phase 3 — Portfolio Site (moish.github.io)
-
-- [ ] Create `moish.github.io` repo, scaffold static site
-- [ ] Architecture page with MLOps platform diagram
-- [ ] Home page with live API health badge linked to staging endpoint
-- [ ] Deploy via GitHub Pages
-
-## Phase 4 — Connect MLOps to Portfolio
-
-- [ ] Models page: live demo calling `/predict/fraud` endpoint
-- [ ] CI/CD page: link to GitHub Actions run history
-- [ ] Embedded Grafana dashboards (public read-only panels)
-
-## Phase 5 — Model Upgrades + Models 2 & 3
-
-- [ ] Replace placeholder fraud detection model with a properly trained, documented version
-- [ ] DistilBERT sentiment analysis: training pipeline, `/predict/sentiment` endpoint, staging deploy
-- [ ] Demand forecasting: LightGBM/Prophet pipeline, `/predict/forecast` endpoint, staging deploy
-- [ ] All three models live in staging
-
-## Phase 6 — Monitoring & Production Pipeline
+## Phase 3 — Monitoring & Production Pipeline
 
 - [ ] Evidently AI drift detection (k3s CronJob)
 - [ ] Prometheus scraping FastAPI + Evidently metrics
@@ -232,6 +218,26 @@ All code is written. Remaining tasks are infrastructure wiring only.
 - [ ] Alertmanager rules + auto-rollback workflow
 - [ ] Production deploy pipeline with canary logic (`deploy-prod.yml`)
 - [ ] Loki log aggregation
+
+## Phase 4 — Portfolio Site (moish.github.io)
+
+- [ ] Create `moish.github.io` repo, scaffold static site
+- [ ] Architecture page with MLOps platform diagram
+- [ ] Home page with live API health badge linked to staging endpoint
+- [ ] Deploy via GitHub Pages
+
+## Phase 5 — Connect MLOps to Portfolio
+
+- [ ] Models page: live demo calling `/predict/fraud` endpoint
+- [ ] CI/CD page: link to GitHub Actions run history
+- [ ] Embedded Grafana dashboards (public read-only panels)
+
+## Phase 6 — Model Upgrades + Models 2 & 3 (Future)
+
+- [ ] Replace placeholder fraud detection model with a properly trained, documented version
+- [ ] DistilBERT sentiment analysis: training pipeline, `/predict/sentiment` endpoint, staging deploy
+- [ ] Demand forecasting: LightGBM/Prophet pipeline, `/predict/forecast` endpoint, staging deploy
+- [ ] All three models live in staging
 
 ---
 
