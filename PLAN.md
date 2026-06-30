@@ -4,7 +4,7 @@
 
 Production-grade MLOps platform demonstrating end-to-end machine learning engineering: training pipelines, experiment tracking, containerized deployment on Kubernetes, model monitoring, and automated CI/CD. Built as a portfolio project with a live showcase site.
 
-**Infrastructure:** AWS EC2 t2.micro + k3s (self-managed Kubernetes), Azure Blob for DVC remote  
+**Infrastructure:** AWS EC2 t3.micro + k3s (self-managed Kubernetes), Azure Blob for DVC remote  
 **Strategy:** Ship end-to-end pipeline with a placeholder model first, then upgrade the model and connect to the portfolio site.
 
 ---
@@ -158,7 +158,7 @@ feature/* ──► develop ──► staging ──► main (production)
 
 | Resource | SKU | Est. Cost/Month |
 |---|---|---|
-| AWS EC2 (k3s host) | t2.micro, free tier | $0 for 12 months, then ~$8.50 |
+| AWS EC2 (k3s host) | t3.micro, free tier | $0 for 12 months, then ~$7.50 (~$0.0104/hr) |
 | Azure Blob Storage | LRS, ~10 GB (DVC remote) | ~$1 |
 | AWS Elastic IP | Attached to running instance | $0 (free while attached) |
 | Egress / misc | — | ~$1 |
@@ -202,7 +202,7 @@ All code is written. Remaining tasks are infrastructure wiring only.
 - [x] Kubernetes manifests (namespace, deployment, service, hpa, ingress)
 - [x] GitHub Actions staging deploy workflow (5 jobs)
 - [x] `learning.md` updated with AKS + Azure VM failures, infrastructure pivot decision
-- [ ] Provision AWS EC2 t2.micro (Ubuntu 22.04, ports 22/80/443/6443 open)
+- [x] Provision AWS EC2 t3.micro (Ubuntu 22.04, ports 22/80/443/6443 open, Elastic IP attached)
 - [ ] Add 1GB swap file on the VM
 - [ ] Install k3s on the VM
 - [ ] Export kubeconfig (substitute 127.0.0.1 → EC2 public IP)
@@ -250,7 +250,7 @@ All code is written. Remaining tasks are infrastructure wiring only.
 | Azure VM abandoned | Standard_B2s unavailable in eastus; no alternatives available across all regions and sizes |
 | Terraform dropped | Single VM doesn't need IaC; existing Terraform modules remain in git history as portfolio evidence |
 | Azure Key Vault dropped | K8s secrets created directly in deploy job via `kubectl create secret --dry-run \| kubectl apply` |
-| AWS EC2 t2.micro chosen | Free tier eligible (12 months), k3s runs on 1GB with swap, ~$8.50/month after free tier |
+| AWS EC2 t3.micro chosen | Free tier eligible (12 months), t2.micro not available in region, t3.micro is newer gen equivalent at ~$0.0104/hr |
 | DVC Azure Blob kept | Already working, no quota issues, ~$1/month |
 
 ---
