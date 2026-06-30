@@ -203,11 +203,11 @@ All code is written. Remaining tasks are infrastructure wiring only.
 - [x] GitHub Actions staging deploy workflow (5 jobs)
 - [x] `learning.md` updated with AKS + Azure VM failures, infrastructure pivot decision
 - [x] Provision AWS EC2 t3.micro (Ubuntu 22.04, ports 22/80/443/6443 open, Elastic IP attached)
-- [ ] Add 1GB swap file on the VM
-- [ ] Install k3s on the VM
-- [ ] Export kubeconfig (substitute 127.0.0.1 → EC2 public IP)
-- [ ] Update `deploy-staging.yml`: remove `azure/login` + `azure/aks-set-context` from `deploy` and `smoke-test` jobs; replace with KUBECONFIG setup step
-- [ ] Set GitHub secrets: `KUBECONFIG`, `GHCR_PAT`, `MLFLOW_TRACKING_URI`, `FRAUD_MODEL_URI`, `MLFLOW_MODEL_VERSION`
+- [x] Add 1GB swap file on the VM
+- [x] Install k3s on the VM
+- [x] Export kubeconfig (substitute 127.0.0.1 → EC2 public IP)
+- [x] Update `deploy-staging.yml`: remove `azure/login` + `azure/aks-set-context` from `deploy` and `smoke-test` jobs; replace with KUBECONFIG setup step
+- [x] Set GitHub secrets: `KUBECONFIG`, `GHCR_PAT`
 - [ ] Merge `feat/deploy-aks-staging` → `staging` branch to trigger `deploy-staging.yml`
 - [ ] Verify live `/predict/fraud` endpoint responds
 
